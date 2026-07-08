@@ -6,11 +6,11 @@ on:
       ANDROID_NDK:
         description: "Android NDK"
         required: true
-        default: 'r28-beta1'
+        default: 'r29'
       ANDROID_ABI:
         description: "Android ABI"
         required: true
-        default: '21'
+        default: '23'
       ENABLED_DECODERS:
         description: "Enabled FFmpeg decoder"
         required: true
@@ -18,7 +18,7 @@ on:
       FFMPEG_BRANCH:
         description: "FFmpeg branch"
         required: true
-        default: 'release/7.1'
+        default: 'release/9.0'
       MEDIA3_BRANCH:
         description: "media3 branch"
         required: true
@@ -46,14 +46,14 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'zulu'
-          
+
       - name: Set up Android NDK
         run: |
           cd "$GITHUB_WORKSPACE"
@@ -64,9 +64,9 @@ jobs:
       - name: Clone repositories
         run: |
           cd "$GITHUB_WORKSPACE"
-          git clone https://github.com/androidx/media -b ${{ github.event.inputs.MEDIA3_BRANCH }}
+          git clone https://github.com/androidx/media -b ${{ github.event.inputs.MEDIA3_BRANCH }} --depth=1
           cd media/libraries/decoder_ffmpeg
-          git clone git://source.ffmpeg.org/ffmpeg
+          git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg -b ${{ github.event.inputs.FFMPEG_BRANCH }} --depth=1
 
       - name: Build FFmpeg jni
         run: |
@@ -75,9 +75,7 @@ jobs:
           HOST_PLATFORM="linux-x86_64"
           ANDROID_ABI=${{ github.event.inputs.ANDROID_ABI }}
           ENABLED_DECODERS=(${{ github.event.inputs.ENABLED_DECODERS }})
-          cd "$GITHUB_WORKSPACE"/media/libraries/decoder_ffmpeg/ffmpeg
-          git checkout ${{ github.event.inputs.FFMPEG_BRANCH }}
-          FFMPEG_PATH="$(pwd)"
+          FFMPEG_PATH="$GITHUB_WORKSPACE"/media/libraries/decoder_ffmpeg/ffmpeg
           cd "${FFMPEG_MODULE_PATH}/jni"
           ln -s "$FFMPEG_PATH" ffmpeg
           cd "${FFMPEG_MODULE_PATH}/jni"
@@ -98,7 +96,7 @@ jobs:
           ./gradlew lib-decoder-ffmpeg:assembleRelease
 
       - name: Upload FFmpeg jni
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: FFmpeg-jni
           path: |
@@ -106,7 +104,7 @@ jobs:
           compression-level: 9
 
       - name: Upload FFmpeg aar
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: FFmpeg-aar
           path: |
