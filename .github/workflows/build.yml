@@ -51,6 +51,7 @@ jobs:
           FFMPEG_PATH="$GITHUB_WORKSPACE"/media/libraries/decoder_ffmpeg/ffmpeg
           cd "${FFMPEG_MODULE_PATH}/jni"
           ln -s "$FFMPEG_PATH" ffmpeg
+          sed -i '/--disable-postproc/d' build_ffmpeg.sh
           ./build_ffmpeg.sh "${FFMPEG_MODULE_PATH}" "${NDK_PATH}" "${HOST_PLATFORM}" "${ANDROID_ABI}" "${ENABLED_DECODERS[@]}"
 
       - name: Build FFmpeg aar
