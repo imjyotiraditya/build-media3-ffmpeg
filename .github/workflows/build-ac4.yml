@@ -1,0 +1,79 @@
+name: Build media3 FFmpeg decoder (AC-4)
+
+on:
+  workflow_dispatch:
+
+env:
+  ANDROID_NDK: r29
+  ANDROID_ABI: 23
+  ENABLED_DECODERS: vorbis opus flac alac pcm_mulaw pcm_alaw mp3 amrnb amrwb aac ac3 eac3 dca mlp truehd ac4
+  FFMPEG_MIRROR: https://github.com/imjyotiraditya/ffmpeg-mirror.git
+  FFMPEG_BRANCH: release/9.0
+  MEDIA3_BRANCH: release
+
+jobs:
+  build:
+    name: Build (AC-4)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Set up Android NDK
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          wget -q https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK}-linux.zip
+          unzip android-ndk-${ANDROID_NDK}-linux.zip &>/dev/null
+          rm -rf android-ndk-${ANDROID_NDK}-linux.zip
+
+      - name: Clone repositories
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git clone https://github.com/androidx/media -b ${MEDIA3_BRANCH} --depth=1
+          cd media/libraries/decoder_ffmpeg
+          git clone "${FFMPEG_MIRROR}" -b "${FFMPEG_BRANCH}" --depth=1 ffmpeg
+
+      - name: Apply AC-4 decoder patch
+        run: |
+          cd "$GITHUB_WORKSPACE"/media/libraries/decoder_ffmpeg/ffmpeg
+          git apply "$GITHUB_WORKSPACE"/patches/ac4-decoder.patch
+
+      - name: Build FFmpeg jni
+        run: |
+          FFMPEG_MODULE_PATH="$GITHUB_WORKSPACE"/media/libraries/decoder_ffmpeg/src/main
+          NDK_PATH="$GITHUB_WORKSPACE"/android-ndk-${ANDROID_NDK}
+          HOST_PLATFORM="linux-x86_64"
+          ENABLED_DECODERS=(${ENABLED_DECODERS})
+          FFMPEG_PATH="$GITHUB_WORKSPACE"/media/libraries/decoder_ffmpeg/ffmpeg
+          cd "${FFMPEG_MODULE_PATH}/jni"
+          ln -s "$FFMPEG_PATH" ffmpeg
+          sed -i '/--disable-postproc/d' build_ffmpeg.sh
+          ./build_ffmpeg.sh "${FFMPEG_MODULE_PATH}" "${NDK_PATH}" "${HOST_PLATFORM}" "${ANDROID_ABI}" "${ENABLED_DECODERS[@]}"
+
+      - name: Build FFmpeg aar
+        run: |
+          cd "$GITHUB_WORKSPACE"/media
+          ./gradlew lib-decoder-ffmpeg:assembleRelease
+
+      - name: Upload FFmpeg jni
+        uses: actions/upload-artifact@v7
+        with:
+          name: FFmpeg-jni-ac4
+          path: |
+            media/libraries/decoder_ffmpeg/ffmpeg/android-libs/*
+          compression-level: 9
+
+      - name: Upload FFmpeg aar
+        uses: actions/upload-artifact@v7
+        with:
+          name: FFmpeg-aar-ac4
+          path: |
+            media/libraries/decoder_ffmpeg/buildout/outputs/aar/*
+          compression-level: 9
