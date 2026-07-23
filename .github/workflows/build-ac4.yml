@@ -45,6 +45,11 @@ jobs:
           cd "$GITHUB_WORKSPACE"/media/libraries/decoder_ffmpeg/ffmpeg
           git apply "$GITHUB_WORKSPACE"/patches/ac4-decoder.patch
 
+      - name: Apply media3 resample fix
+        run: |
+          cd "$GITHUB_WORKSPACE"/media
+          patch -p1 < "$GITHUB_WORKSPACE"/patches/media3-resample-fix.patch
+
       - name: Build FFmpeg jni
         run: |
           FFMPEG_MODULE_PATH="$GITHUB_WORKSPACE"/media/libraries/decoder_ffmpeg/src/main
